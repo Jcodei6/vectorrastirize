@@ -1,69 +1,66 @@
 import os
-import uuid
-from flask import Flask, render_template, request, jsonify, send_file
+import cv2
+import numpy as np
 import vtracer
+from flask import Flask, render_template, request, jsonify, send_file
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-# Set up folders for temporary uploads and outputs
-UPLOAD_FOLDER = 'temp_uploads'
-OUTPUT_FOLDER = 'temp_outputs'
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+# Create a temporary folder to hold images while they are being converted
+app.config['UPLOAD_FOLDER'] = 'temp_uploads'
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 @app.route('/')
 def index():
-    # Serve the main HTML page
+    # This serves your index.html file
     return render_template('index.html')
 
 @app.route('/vectorize', methods=['POST'])
 def vectorize():
     if 'image' not in request.files:
-        return jsonify({'error': 'No image provided'}), 400
-
+        return jsonify({'error': 'No image uploaded'}), 400
+        
     file = request.files['image']
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
-
-    # Grab user settings from the frontend sliders
-    colormode = request.form.get('colormode', 'color')
-    mode = request.form.get('mode', 'spline')
-    color_precision = int(request.form.get('color_precision', 6))
+        
+    # Grab the slider settings from the web interface
+    color_mode = request.form.get('color_mode', 'color')
     corner_threshold = int(request.form.get('corner_threshold', 60))
-
-    # Save the uploaded file temporarily
-    file_id = str(uuid.uuid4())
-    input_ext = os.path.splitext(file.filename)[1]
-    input_path = os.path.join(UPLOAD_FOLDER, f"{file_id}{input_ext}")
-    output_path = os.path.join(OUTPUT_FOLDER, f"{file_id}.svg")
+    filter_speckle = int(request.form.get('filter_speckle', 4))
     
+    # Secure the filename and set up input/output paths
+    filename = secure_filename(file.filename)
+    input_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    output_filename = os.path.splitext(filename)[0] + '.svg'
+    output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
+    
+    # Save the uploaded raster image to the server temporarily
     file.save(input_path)
-
+    
     try:
         # Run the vectorization engine
         vtracer.convert_image_to_svg(
-            input_path, 
+            input_path,
             output_path,
-            colormode=colormode,
-            mode=mode,
-            color_precision=color_precision,
-            corner_threshold=corner_threshold,
-            hierarchical='stacked'
+            colormode=color_mode,
+            hierarchical='stacked',
+            mode='spline',
+            filter_speckle=filter_speckle,
+            corner_threshold=corner_threshold
         )
         
-        # Clean up the input file
-        if os.path.exists(input_path):
-            os.remove(input_path)
-            
-        # Return the URL where the user can download the SVG
-        return jsonify({'success': True, 'svg_url': f'/download/{file_id}.svg'})
+        # Send the generated SVG back to the browser for download
+        return send_file(output_path, mimetype='image/svg+xml', as_attachment=False)
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
-@app.route('/download/<filename>')
-def download(filename):
-    file_path = os.path.join(OUTPUT_FOLDER, filename)
-    return send_file(file_path, as_attachment=True)
+        
+    finally:
+        # Delete the raster file immediately so your server doesn't get bloated
+        if os.path.exists(input_path):
+            os.remove(input_path)
+        # Note: The SVG output_path is kept briefly so the browser can read it. 
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
