@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Image Vectorizer</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Local Image Vectorizer</h1>
+        <p>Convert PNG/JPG to clean, scalable SVG paths.</p>
+
+        <div class="main-workspace">
+            <!-- Left Side: Controls -->
+            <div class="controls-panel">
+                <form id="vectorForm">
+                    <div class="form-group">
+                        <label>Color Mode:</label>
+                        <select name="colormode">
+                            <option value="color">Full Color</option>
+                            <option value="binary">Black & White (For Plotters)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Curve Style:</label>
+                        <select name="mode">
+                            <option value="spline">Smooth Splines</option>
+                            <option value="polygon">Sharp Polygons</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Color Precision (1-8): <span id="colorVal">6</span></label>
+                        <input type="range" name="color_precision" min="1" max="8" value="6" oninput="document.getElementById('colorVal').innerText = this.value">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Corner Sharpness (0-180): <span id="cornerVal">60</span></label>
+                        <input type="range" name="corner_threshold" min="0" max="180" value="60" oninput="document.getElementById('cornerVal').innerText = this.value">
+                    </div>
+                </form>
+            </div>
+
+            <!-- Right Side: Upload Area -->
+            <div class="upload-panel">
+                <div id="dropZone" class="drop-zone">
+                    <p>Drag & Drop an image here<br>or click to select</p>
+                    <input type="file" id="fileInput" accept="image/*" style="display: none;">
+                </div>
+                
+                <div id="loading" class="hidden">Vectorizing... Please wait.</div>
+                
+                <div id="resultArea" class="hidden">
+                    <p>Success!</p>
+                    <a id="downloadBtn" href="#" class="btn" download>Download SVG</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>
